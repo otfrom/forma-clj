@@ -16,7 +16,7 @@
 
 (defmain formarunner
   [tmp-root pail-path ts-pail-path fire-pail-path out-path run-key]
-  (let [{:keys [s-res t-res est-end] :as est-map} (forma-run-parameters run-key)
+  (let [{:keys [s-res t-res est-end] :as est-map} (scatter/forma-run-parameters run-key)
         mk-filter (fn [vcf-path ts-src] (forma/filter-query (hfs-seqfile vcf-path)
                                                            (:vcf-limit est-map)
                                                            ts-src))]
