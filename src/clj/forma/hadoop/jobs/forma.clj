@@ -147,7 +147,6 @@
     (<- [?s-res ?mod-h ?mod-v ?sample ?line ?start ?end ?short ?long ?t-stat ?break]
         (clean-src ?s-res ?mod-h ?mod-v ?sample ?line ?start ?ndvi ?precl)
         (series-end ?ndvi ?start :> ?end)
-        (already-processed? t-res "2012-04-22" ?end ?mod-h ?mod-v :BRA :IDN :> false)
         (f/shorten-ts ?ndvi ?precl :> ?short-precl)
         (a/short-stat long-block short-block ?ndvi :> ?short)
         (a/long-stats ?ndvi ?short-precl :> ?long ?t-stat)
