@@ -1,6 +1,7 @@
 (ns forma.hadoop.jobs.forma
   (:use cascalog.api
-        [forma.hadoop.pail :only (split-chunk-tap)])
+        [forma.hadoop.pail :only (split-chunk-tap)]
+        [forma.source.tilesets :only (tile-set country-tiles)])
   (:require [cascalog.ops :as c]
             [forma.matrix.walk :as w]
             [forma.reproject :as r]
@@ -120,6 +121,18 @@
   [series start]
   (let [length (count series)]
     (dec (+ start length))))
+
+(defn in-tile-set?
+  "A pixel in "
+  [h v & iso-keys]
+  (contains? (apply tile-set iso-keys) [h v]))
+
+(defn already-processed?
+  "Return true if pixels have already been processed during Brazil/Indonesia processing,
+   which ran through 2012-04-22"
+  [t-res previous-end end h v & iso-keys]
+  (and (apply in-tile-set? h v iso-keys)
+       (<= end (date/datetime->period t-res previous-end))))
 
 (defn analyze-trends
   "Accepts an est-map, and sources for ndvi and rain timeseries and
