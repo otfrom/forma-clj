@@ -111,7 +111,7 @@
   occur before the analysis. Note that all variable names within this
   query are TIMESERIES, not individual values."
   [est-map dynamic-src]
-  (<- [?s-res ?mod-h ?mod-v ?sample ?line ?start ?tele-ndvi ?precl]
+  (<- [?s-res ?mod-h ?mod-v ?sample ?line ?start ?tele-ndvi ?precl _]
       (dynamic-src ?s-res ?mod-h ?mod-v ?sample ?line ?start ?ndvi ?precl _)
       (telescope-ts est-map ?start ?ndvi :> ?tele-ndvi)
       (:distinct false)))
@@ -132,7 +132,7 @@
   (let [long-block (:long-block est-map)
         short-block (:window est-map)]
     (<- [?s-res ?mod-h ?mod-v ?sample ?line ?start ?end ?short ?long ?t-stat ?break]
-        (clean-src ?s-res ?mod-h ?mod-v ?sample ?line ?start ?ndvi ?precl)
+        (clean-src ?s-res ?mod-h ?mod-v ?sample ?line ?start ?ndvi ?precl _)
         (f/shorten-ts ?ndvi ?precl :> ?short-precl)
         (a/short-stat long-block short-block ?ndvi :> ?short)
         (a/long-stats ?ndvi ?short-precl :> ?long ?t-stat)
@@ -240,12 +240,11 @@
 (defn beta-gen
   "query to return the beta vector associated with each ecoregion"
   [{:keys [t-res est-start ridge-const convergence-thresh max-iterations min-coast-dist]} src]
-  (let [first-idx (date/datetime->period t-res est-start)]
-    (<- [?s-res ?eco ?beta]
-        (src ?s-res ?pd ?mod-h ?mod-v ?s ?l ?val ?neighbor-val ?eco ?hansen)
-        (log/logistic-beta-wrap [ridge-const convergence-thresh max-iterations]
-                                ?hansen ?val ?neighbor-val :> ?beta)
-        (:distinct false))))
+  (<- [?s-res ?eco ?beta]
+      (src ?s-res ?pd ?mod-h ?mod-v ?s ?l ?val ?neighbor-val ?eco ?hansen)
+      (log/logistic-beta-wrap [ridge-const convergence-thresh max-iterations]
+                              ?hansen ?val ?neighbor-val :> ?beta)
+      (:distinct false)))
 
 (defmapop [apply-betas [betas]]
   [eco val neighbor-val]
@@ -271,4 +270,13 @@
         (static-src ?s-res ?mod-h ?mod-v ?s ?l _ _ ?eco _ _)
         (apply-betas [betas] ?eco ?val ?neighbor-val :> ?prob)
         (mk-timeseries ?pd ?prob :> ?prob-series)
+        (:distinct false))))
+
+(defn forma-incremental-estimate
+  [beta-src dynamic-src static-src]
+  (let [betas (log/beta-dict beta-src)]
+    (<- [?s-res ?mod-h ?mod-v ?s ?l ?pd ?prob]
+        (dynamic-src ?s-res ?pd ?mod-h ?mod-v ?s ?l ?val ?neighbor-val)
+        (static-src ?s-res ?mod-h ?mod-v ?s ?l _ _ ?eco _ _)
+        (apply-betas [betas] ?eco ?val ?neighbor-val :> ?prob)
         (:distinct false))))
