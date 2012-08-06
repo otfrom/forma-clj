@@ -49,6 +49,12 @@
         high-range (range 5 1600)]
     (concat low-range high-range)))
 
+(def linear-ndvi
+  "linear prediction of NDVI from OLS"
+  (linear-predict (i/matrix bimonth-ndvi)
+                  (i/bind-columns (repeat 199 1)
+                                  ndvi-range)))
+
 (defn series-plot
   "Returns an incanter plot, ready for slider adjustment; sets
   parameters for graphing."
@@ -105,6 +111,8 @@
     the HP-filter being the NDVI, deseasonalized by harmonic
     decomposition.
 
+    :linear - (static plot) NDVI timeseries with linear prediction.
+
     :break-plot - NDVI timeseries with break detection overlay, along
     with three sliders that control three parameters: p-value, window
     length, and HP-filter parameter.
@@ -113,6 +121,7 @@
     (presentation-view :harmonic-plot)"
   [k]
   (let [hp-plot (series-plot hp-ndvi)
+        linear-plot (series-plot linear-ndvi)
         harmonic-plot (series-plot decomp-ndvi)]
     (cond
      (= k :hp-filter)
@@ -127,6 +136,9 @@
      (do (i/view harmonic-plot)
          (add-ts bimonth-ndvi  harmonic-plot)
          (hp-slider ndvi-range decomp-ndvi harmonic-plot))
+     (= k :linear)
+     (do (i/view linear-plot)
+         (add-ts bimonth-ndvi linear-plot))
      (= k :break-plot)
      (do (i/view plot-efp)
          (add-ts bimonth-ndvi plot-efp)
