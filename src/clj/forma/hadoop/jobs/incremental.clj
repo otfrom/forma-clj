@@ -268,14 +268,3 @@
                  "stop everything before deleting the temp directory"
                  (?- (hfs-seqfile "/mnt/hgfs/Dropbox/yikes")
                      (hfs-seqfile "/mnt/hgfs/Dropbox/yikestimes"))))))
-
-(defn peek-seqfile [path]
-  (let [src (hfs-seqfile path)]
-    (?- (stdout)
-        (c/first-n
-         (<- [?s-res ?period ?mod-h ?mod-v ?sample ?line ?val ?neighbor-val]
-             (src ?s-res ?period ?mod-h ?mod-v ?sample ?line ?val ?neighbor-val)
-             (= ?sample 420)
-             (= ?line 2182)
-             (= ?period 827))
-         5))))
