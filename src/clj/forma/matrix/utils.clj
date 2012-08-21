@@ -2,7 +2,8 @@
   "A set of useful and general functions for matrix operations or
   filters."
   (:use [forma.utils :only (thrush)])
-  (:require [incanter.core :as i]))
+  (:require [incanter.core :as i])
+  (:import [org.jblas FloatMatrix MatrixFunctions Solve DoubleMatrix]))
 
 (defn is-square?
   "Returns true if input matrix is square, and false otherwise.
@@ -207,3 +208,37 @@
   [val rows cols]
   (apply thrush val
          (repeat rows (fn [v] (vec (repeat cols v))))))
+
+(defn ^DoubleMatrix
+  to-double-matrix
+  "converts a clojure matrix representation to a DoubleMatrix instance
+  for use with jBLAS functions
+
+  Argument:
+    vector of vectors; clojure representation of a matrix
+
+  Example:
+    (to-double-matrix [0]) => #<DoubleMatrix []>
+    (to-double-matrix [[0]]) => #<DoubleMatrix [0.0]>
+    (to-double-matrix [[0] [1]]) => #<DoubleMatrix [0.0; 1.0]>
+
+  Reference:
+    http://jblas.org/javadoc/org/jblas/DoubleMatrix.html"
+  [mat]
+  (DoubleMatrix.
+   (into-array (map double-array mat))))
+
+(defn ^DoubleMatrix
+  to-double-rowmat
+  "converts a clojure vector to a DoubleMatrix row vector
+
+  Argument:
+    persistent vector
+
+  Example:
+    (to-double-rowmat [1 2 3]) => #<DoubleMatrix [1.0, 2.0, 3.0]>
+
+  Reference:
+    http://jblas.org/javadoc/org/jblas/DoubleMatrix.html"
+  [coll]
+  (to-double-matrix [(vec coll)]))

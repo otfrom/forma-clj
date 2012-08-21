@@ -2,6 +2,7 @@
   "This namespace tests the numerical properties of the logistic
   classifier."
   (:use [midje sweet]
+        [forma.matrix.utils :only (to-double-matrix to-double-rowmat)]
         [forma.classify.logistic]
         [clojure-csv.core])
   (:import [org.jblas FloatMatrix MatrixFunctions DoubleMatrix])

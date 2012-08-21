@@ -16,39 +16,6 @@
 ;; and feature sequences are consistently positioned in the label and
 ;; feature collections.
 
-(defn ^DoubleMatrix
-  to-double-matrix
-  "converts a clojure matrix representation to a DoubleMatrix instance
-  for use with jBLAS functions
-
-  Argument:
-    vector of vectors; clojure representation of a matrix
-
-  Example:
-    (to-double-matrix [0]) => #<DoubleMatrix []>
-    (to-double-matrix [[0]]) => #<DoubleMatrix [0.0]>
-    (to-double-matrix [[0] [1]]) => #<DoubleMatrix [0.0; 1.0]>
-
-  Reference:
-    http://jblas.org/javadoc/org/jblas/DoubleMatrix.html"
-  [mat]
-  (DoubleMatrix.
-   (into-array (map double-array mat))))
-
-(defn ^DoubleMatrix
-  to-double-rowmat
-  "converts a clojure vector to a DoubleMatrix row vector
-
-  Argument:
-    persistent vector
-
-  Example:
-    (to-double-rowmat [1 2 3]) => #<DoubleMatrix [1.0, 2.0, 3.0]>
-
-  Reference:
-    http://jblas.org/javadoc/org/jblas/DoubleMatrix.html"
-  [coll]
-  (to-double-matrix [(vec coll)]))
 
 (defn ^DoubleMatrix
   logistic-fn

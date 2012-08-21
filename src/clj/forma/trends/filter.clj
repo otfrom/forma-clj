@@ -81,7 +81,32 @@
 ;; consequently less weight on recent observations.
 ;; Reference: http://goo.gl/VC7jJ
 
-(defn hp-mat
+(defn hp-mat-large
+  [large-T]
+  (let [long-seq (for [x (range (- large-T 2))]
+                   (u/insert-into-val 0 x large-T [1 -2 1]))]
+    (i/matrix long-seq)))
+
+(defn K [T]
+  (let [large-mat (hp-mat-large 10)
+        half-seq (range (/ T 2))]
+    ))
+
+(defn hp-mat [T]
+  (let [k-seq (for [x (range (- T 2))]
+                (u/insert-into-val 0 x T [1 -2 1]))]
+    (u/to-double-matrix k-seq)))
+
+(defn hp-filter [lambda ts]
+  (let [T (count ts)
+        K (hp-mat T)
+        scale-mat (->> (i/mmult (i/trans K) K)
+                       (i/mult lambda)
+                       (i/plus (i/identity-matrix T))
+                       (i/solve))]
+    (i/mmult scale-mat (i/matrix ts))))
+
+(defn hp-mat-2
   "returns the matrix of coefficients from the minimization problem
   required to parse the trend component from a time-series of length
   `T`, which has to be greater than or equal to 9 periods."
@@ -99,7 +124,7 @@
          (concat but-2)
          i/matrix)))
 
-(defn hp-filter
+(defn hp-filter-2
   "return a smoothed time series, given the original time series and
   H-P filter parameter (lambda); from the following reference, we calculate
   inv(lambdaF + I)*y
@@ -107,7 +132,7 @@
  Reference: http://goo.gl/VC7jJ"
   [lambda ts]
   (let [T (count ts)
-        coeff-matrix (i/mult lambda (hp-mat T))
+        coeff-matrix (i/mult lambda (hp-mat-2 T))
         trend-cond (i/solve
                     (i/plus coeff-matrix
                             (i/identity-matrix T)))]

@@ -2,6 +2,7 @@
   "Convenient wrapper functions for the classify.logistic namespace,
   used mainly to compose cascalog queries."
   (:use [forma.classify.logistic]
+        [forma.matrix.utils :only (to-double-matrix to-double-rowmat)]
         [cascalog.api])
   (:require [cascalog.ops :as c]
             [forma.thrift :as thrift]))
