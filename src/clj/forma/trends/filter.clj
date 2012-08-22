@@ -2,7 +2,8 @@
   (:use [forma.utils :only (positions average scale idx)])
   (:require  [forma.matrix.utils :as u]
              [incanter.core :as i]
-             [incanter.stats :as s]))
+             [incanter.stats :as s])
+  (:import [org.jblas.ranges IndicesRange]))
 
 ;; Remove seasonal component by basic dummy decomposition
 
@@ -79,64 +80,61 @@
 ;; Hodrick-Prescott filter for additional smoothing; a higher lambda
 ;; parameter implies more weight on overall observations, and
 ;; consequently less weight on recent observations.
-;; Reference: http://goo.gl/VC7jJ
+;; Reference: http://goo.gl/VC7j
 
-(defn hp-mat-large
-  [large-T]
-  (let [long-seq (for [x (range (- large-T 2))]
-                   (u/insert-into-val 0 x large-T [1 -2 1]))]
-    (i/matrix long-seq)))
+;; (defn hp-mat-large
+;;   [large-T]
+;;   (let [long-seq (for [x (range (- large-T 2))]
+;;                    (u/insert-into-val 0 x large-T [1 -2 1]))]
+;;     (i/matrix long-seq)))
 
-(defn K [T]
-  (let [large-mat (hp-mat-large 10)
-        half-seq (range (/ T 2))]
-    ))
-
-(defn hp-mat [T]
+(defn K-mat [T]
   (let [k-seq (for [x (range (- T 2))]
                 (u/insert-into-val 0 x T [1 -2 1]))]
+    (prn (i/mmult (i/trans (i/matrix k-seq)) (i/matrix k-seq)))
+    (prn (i/dim (i/matrix k-seq)))
     (u/to-double-matrix k-seq)))
 
-(defn hp-filter [lambda ts]
-  (let [T (count ts)
-        K (hp-mat T)
-        scale-mat (->> (i/mmult (i/trans K) K)
-                       (i/mult lambda)
-                       (i/plus (i/identity-matrix T))
-                       (i/solve))]
-    (i/mmult scale-mat (i/matrix ts))))
+;; (defn hp-filter [lambda ts]
+;;   (let [T (count ts)
+;;         K (hp-mat T)
+;;         scale-mat (->> (i/mmult (i/trans K) K)
+;;                        (i/mult lambda)
+;;                        (i/plus (i/identity-matrix T))
+;;                        (i/solve))]
+    ;; (i/mmult scale-mat (i/matrix ts))))
 
-(defn hp-mat-2
-  "returns the matrix of coefficients from the minimization problem
-  required to parse the trend component from a time-series of length
-  `T`, which has to be greater than or equal to 9 periods."
-  [T]
-  {:pre  [(>= T 9)]
-   :post [(= [T T] (i/dim %))]}
-  (let [[first second :as but-2]
-        (for [x (range (- T 2))
-              :let [idx (if (>= x 2) (- x 2) 0)]]
-          (u/insert-into-val 0 idx T (cond (= x 0)  [1 -2 1]
-                                           (= x 1)  [-2 5 -4 1]
-                                           :else [1 -4 6 -4 1])))]
-    (->> [second first]
-         (map reverse)
-         (concat but-2)
-         i/matrix)))
+;; (defn hp-mat-2
+;;   "returns the matrix of coefficients from the minimization problem
+;;   required to parse the trend component from a time-series of length
+;;   `T`, which has to be greater than or equal to 9 periods."
+;;   [T]
+;;   {:pre  [(>= T 9)]
+;;    :post [(= [T T] (i/dim %))]}
+;;   (let [[first second :as but-2]
+;;         (for [x (range (- T 2))
+;;               :let [idx (if (>= x 2) (- x 2) 0)]]
+;;           (u/insert-into-val 0 idx T (cond (= x 0)  [1 -2 1]
+;;                                            (= x 1)  [-2 5 -4 1]
+;;                                            :else [1 -4 6 -4 1])))]
+;;     (->> [second first]
+;;          (map reverse)
+;;          (concat but-2)
+;;          i/matrix)))
 
-(defn hp-filter-2
-  "return a smoothed time series, given the original time series and
-  H-P filter parameter (lambda); from the following reference, we calculate
-  inv(lambdaF + I)*y
+;; (defn hp-filter-2
+;;   "return a smoothed time series, given the original time series and
+;;   H-P filter parameter (lambda); from the following reference, we calculate
+;;   inv(lambdaF + I)*y
 
- Reference: http://goo.gl/VC7jJ"
-  [lambda ts]
-  (let [T (count ts)
-        coeff-matrix (i/mult lambda (hp-mat-2 T))
-        trend-cond (i/solve
-                    (i/plus coeff-matrix
-                            (i/identity-matrix T)))]
-    (i/mmult trend-cond ts)))
+;;  Reference: http://goo.gl/VC7jJ"
+;;   [lambda ts]
+;;   (let [T (count ts)
+;;         coeff-matrix (i/mult lambda (hp-mat-2 T))
+;;         trend-cond (i/solve
+;;                     (i/plus coeff-matrix
+;;                             (i/identity-matrix T)))]
+;;     (i/mmult trend-cond ts)))
 
 ;; Interpolate unreliable values
 
