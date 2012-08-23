@@ -88,12 +88,11 @@
 ;;                    (u/insert-into-val 0 x large-T [1 -2 1]))]
 ;;     (i/matrix long-seq)))
 
-(defn K-mat [T]
+(defn K-mat [lambda T]
   (let [k-seq (for [x (range (- T 2))]
-                (u/insert-into-val 0 x T [1 -2 1]))]
-    (prn (i/mmult (i/trans (i/matrix k-seq)) (i/matrix k-seq)))
-    (prn (i/dim (i/matrix k-seq)))
-    (u/to-double-matrix k-seq)))
+                (u/insert-into-val 0 x T [1 -2 1]))
+        K (u/to-double-matrix k-seq)]
+    (.mmul (.transpose K) K)))
 
 ;; (defn hp-filter [lambda ts]
 ;;   (let [T (count ts)
@@ -104,23 +103,22 @@
 ;;                        (i/solve))]
     ;; (i/mmult scale-mat (i/matrix ts))))
 
-;; (defn hp-mat-2
-;;   "returns the matrix of coefficients from the minimization problem
-;;   required to parse the trend component from a time-series of length
-;;   `T`, which has to be greater than or equal to 9 periods."
-;;   [T]
-;;   {:pre  [(>= T 9)]
-;;    :post [(= [T T] (i/dim %))]}
-;;   (let [[first second :as but-2]
-;;         (for [x (range (- T 2))
-;;               :let [idx (if (>= x 2) (- x 2) 0)]]
-;;           (u/insert-into-val 0 idx T (cond (= x 0)  [1 -2 1]
-;;                                            (= x 1)  [-2 5 -4 1]
-;;                                            :else [1 -4 6 -4 1])))]
-;;     (->> [second first]
-;;          (map reverse)
-;;          (concat but-2)
-;;          i/matrix)))
+(defn hp-mat-2
+  "returns the matrix of coefficients from the minimization problem
+  required to parse the trend component from a time-series of length
+  `T`, which has to be greater than or equal to 9 periods."
+  [T]
+  {:pre  [(>= T 9)]}
+  (let [[first second :as but-2]
+        (for [x (range (- T 2))
+              :let [idx (if (>= x 2) (- x 2) 0)]]
+          (u/insert-into-val 0 idx T (cond (= x 0)  [1 -2 1]
+                                           (= x 1)  [-2 5 -4 1]
+                                           :else [1 -4 6 -4 1])))]
+    (->> [second first]
+         (map reverse)
+         (concat but-2)
+         u/to-double-matrix)))
 
 ;; (defn hp-filter-2
 ;;   "return a smoothed time series, given the original time series and
