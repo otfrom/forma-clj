@@ -69,12 +69,12 @@
     (time (dotimes [_ 100] (hansen-stat ndvi)))
     => Elapsed time: 157.507924 msecs"
   [ts]
-  (let [ts-mat (i/matrix ts)
-        foc (first-order-conditions ts-mat)
+  {:pre [(i/matrix? ts)]}
+  (let [foc (first-order-conditions ts)
         foc-mat (i/mmult foc (i/trans foc))
         focsum (map i/cumulative-sum foc)
         focsum-mat (i/mmult focsum (i/trans focsum))
-        scaled-foc (i/mult foc-mat (i/nrow ts-mat))]
+        scaled-foc (i/mult foc-mat (i/nrow ts))]
     (if-not (singular? scaled-foc)
       (-> (i/solve scaled-foc)
           (i/mmult focsum-mat)
