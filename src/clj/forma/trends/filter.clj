@@ -82,21 +82,11 @@
 ;; consequently less weight on recent observations.
 ;; Reference: http://goo.gl/VC7j
 
-;; (defn hp-filter [lambda ts]
-;;   (let [T (count ts)
-;;         K (hp-mat T)
-;;         scale-mat (->> (i/mmult (i/trans K) K)
-;;                        (i/mult lambda)
-;;                        (i/plus (i/identity-matrix T))
-;;                        (i/solve))]
-    ;; (i/mmult scale-mat (i/matrix ts))))
-
 (defn- hp-mat
-  "returns the matrix of coefficients from the minimization problem
-  required to parse the trend component from a time-series of length
-  `T`, which has to be greater than or equal to 9 periods."
+  "returns the matrix of coefficients indicating the appropriate
+  relative weighting of lags for the Hodrick-Prescott filter."
   [T]
-  {:pre  [(>= T 9)]}
+  {:pre [(>= T 9)]}
   (let [[first second :as but-2]
         (for [x (range (- T 2))
               :let [idx (if (>= x 2) (- x 2) 0)]]
@@ -108,23 +98,29 @@
          (concat but-2)
          (i/matrix))))
 
-(defn- updated-hp-mat [lambda T]
+(defn- updated-hp-mat
+  "returns a matrix based that can be used to smooth and deseasonalize
+  a time series of length `T`.  The level of smoothing is determined
+  by the argument lambda."
+  [lambda T]
   (->> (hp-mat T)
        (i/mult lambda)
        (i/plus (i/identity-matrix T))
        (i/solve)))
 
 (defn hp-filter
-  "return a smoothed time series, given the original time series and
-  H-P filter parameter (lambda); from the following reference, we calculate
-  inv(lambdaF + I)*y
+  "returns a smoothed time series, given the original time series and
+  H-P filter parameter (lambda).
 
- Reference: http://goo.gl/VC7jJ"
+  Reference: http://goo.gl/VC7jJ"
   [lambda ts]
   (let [conditioning-mat (updated-hp-mat lambda (count ts))]
     (i/mmult conditioning-mat ts)))
 
 (defn hp-map
+  "returns a map of the conditioning matrices for HP smoothing.  The
+  keys indicate the length of the matrics, and the values are the
+  matrices themselves, represented as a series of nested vectors."
   [lambda first-dim last-dim]
   (let [mat-list (map (partial updated-hp-mat lambda)
                       (range first-dim (inc last-dim)))
