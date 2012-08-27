@@ -109,11 +109,10 @@
          (i/matrix))))
 
 (defn- updated-hp-mat [lambda T]
-  (let [mat (hp-mat T)]
-    (->> (i/mmult (i/trans mat) mat)
-         (i/mult lambda)
-         (i/plus (i/identity-matrix T))
-         (i/solve))))
+  (->> (hp-mat T)
+       (i/mult lambda)
+       (i/plus (i/identity-matrix T))
+       (i/solve)))
 
 (defn hp-filter
   "return a smoothed time series, given the original time series and
@@ -125,7 +124,12 @@
   (let [conditioning-mat (updated-hp-mat lambda (count ts))]
     (i/mmult conditioning-mat ts)))
 
-(defn hp-map [])
+(defn hp-map
+  [lambda first-dim last-dim]
+  (let [mat-list (map (partial updated-hp-mat lambda)
+                      (range first-dim (inc last-dim)))
+        small-map (fn [x] {(keyword (str (i/nrow x))) (i/to-vect x)})]
+    (apply merge (map small-map mat-list))))
 
 ;; Interpolate unreliable values
 
