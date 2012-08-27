@@ -158,7 +158,7 @@
   [est-map clean-src]
   (let [long-block (:long-block est-map)
         short-block (:window est-map)
-        hp-map (??- (gen-hp-map est-map))]
+        hp-map (first (ffirst (??- (gen-hp-map est-map))))]
     (<- [?s-res ?mod-h ?mod-v ?sample ?line ?start ?end ?short ?long ?t-stat ?break]
         (clean-src ?s-res ?mod-h ?mod-v ?sample ?line ?start ?ndvi ?precl)
         (f/shorten-ts ?ndvi ?precl :> ?short-precl)
