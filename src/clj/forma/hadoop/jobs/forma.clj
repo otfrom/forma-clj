@@ -142,7 +142,7 @@
       (f/hp-map lambda first-dim last-dim :> ?hp-map))))
 
 (defmapop [hansen-wrapper [hp-map]]
-  ""
+  "Wrap Hansen stat to handle smoothing using HP filter"
   [length ts]
   (let [k (keyword (str length))
         conditioning-mat (i/matrix (hp-map k))]
