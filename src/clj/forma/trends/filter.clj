@@ -82,18 +82,6 @@
 ;; consequently less weight on recent observations.
 ;; Reference: http://goo.gl/VC7j
 
-;; (defn hp-mat-large
-;;   [large-T]
-;;   (let [long-seq (for [x (range (- large-T 2))]
-;;                    (u/insert-into-val 0 x large-T [1 -2 1]))]
-;;     (i/matrix long-seq)))
-
-(defn K-mat [lambda T]
-  (let [k-seq (for [x (range (- T 2))]
-                (u/insert-into-val 0 x T [1 -2 1]))
-        K (u/to-double-matrix k-seq)]
-    (.mmul (.transpose K) K)))
-
 ;; (defn hp-filter [lambda ts]
 ;;   (let [T (count ts)
 ;;         K (hp-mat T)
@@ -103,7 +91,7 @@
 ;;                        (i/solve))]
     ;; (i/mmult scale-mat (i/matrix ts))))
 
-(defn hp-mat-2
+(defn- hp-mat
   "returns the matrix of coefficients from the minimization problem
   required to parse the trend component from a time-series of length
   `T`, which has to be greater than or equal to 9 periods."
@@ -118,21 +106,26 @@
     (->> [second first]
          (map reverse)
          (concat but-2)
-         u/to-double-matrix)))
+         (i/matrix))))
 
-;; (defn hp-filter-2
-;;   "return a smoothed time series, given the original time series and
-;;   H-P filter parameter (lambda); from the following reference, we calculate
-;;   inv(lambdaF + I)*y
+(defn- updated-hp-mat [lambda T]
+  (let [mat (hp-mat T)]
+    (->> (i/mmult (i/trans mat) mat)
+         (i/mult lambda)
+         (i/plus (i/identity-matrix T))
+         (i/solve))))
 
-;;  Reference: http://goo.gl/VC7jJ"
-;;   [lambda ts]
-;;   (let [T (count ts)
-;;         coeff-matrix (i/mult lambda (hp-mat-2 T))
-;;         trend-cond (i/solve
-;;                     (i/plus coeff-matrix
-;;                             (i/identity-matrix T)))]
-;;     (i/mmult trend-cond ts)))
+(defn hp-filter
+  "return a smoothed time series, given the original time series and
+  H-P filter parameter (lambda); from the following reference, we calculate
+  inv(lambdaF + I)*y
+
+ Reference: http://goo.gl/VC7jJ"
+  [lambda ts]
+  (let [conditioning-mat (updated-hp-mat lambda (count ts))]
+    (i/mmult conditioning-mat ts)))
+
+(defn hp-map [])
 
 ;; Interpolate unreliable values
 
