@@ -91,3 +91,12 @@
                :est-end "2006-01-01"
                :t-res t-res} src)) => (produces [[s-res 28 8 0 0 (sample-fire-series 827 2)]]))
 
+(tabular
+ (fact
+  "Checks that `ts-length` is correctly calculating the length of a timeseries given its temporal resolution and start/end dates"
+  (ts-length "16" ?start ?end) => ?result)
+ ?start       ?end      ?result
+ "2000-01-01" "2000-01-01" 1
+ "2000-01-01" "2000-01-17" 2
+ "2000-01-01" "2000-12-31" 23
+ "2000-02-18" "2010-02-18" 231)

@@ -10,7 +10,8 @@
             [forma.hadoop.predicate :as p]
             [forma.trends.analysis :as a]
             [forma.ops.classify :as log]
-            [forma.trends.filter :as f]))
+            [forma.trends.filter :as f]
+            [incanter.core :as i]))
 
 (defn consolidate-static
   "Due to an issue with Pail, we consolidate separate sequence files
@@ -121,6 +122,32 @@
   (let [length (count series)]
     (dec (+ start length))))
 
+(defn ts-length
+  "Calculates the number of elements in a timeseries given a temporal resolution and the start and end (inclusive) dates of the timeseries."
+  [t-res start-date end-date]
+  (let [base-pd (date/datetime->period t-res start-date)]
+    (inc (first (date/relative-period t-res base-pd [end-date])))))
+
+(defn gen-hp-map
+  "Generate map of matrices for HP filter. Forces generation onto
+   task-tracker, where memory constraints are more easily managed."
+  [est-map]
+  (let [t-res (:t-res est-map)
+        lambda (:lambda est-map)
+        modis-start (:modis-start est-map)
+        first-dim (ts-length t-res modis-start (:est-start est-map))
+        last-dim (ts-length t-res modis-start (:est-end est-map))]
+    (<- [?hp-map]
+      ([[1]] ?nada)
+      (f/hp-map lambda first-dim last-dim :> ?hp-map))))
+
+(defmapop [hansen-wrapper [hp-map]]
+  ""
+  [length ts]
+  (let [k (keyword (str length))
+        conditioning-mat (i/matrix (hp-map k))]
+    (a/hansen-stat (i/mmult conditioning-mat (i/matrix ts)))))
+
 (defn analyze-trends
   "Accepts an est-map, and sources for ndvi and rain timeseries and
   vcf values split up by pixel.
@@ -130,13 +157,15 @@
   query are TIMESERIES, not individual values."
   [est-map clean-src]
   (let [long-block (:long-block est-map)
-        short-block (:window est-map)]
+        short-block (:window est-map)
+        hp-map (??- (gen-hp-map est-map))]
     (<- [?s-res ?mod-h ?mod-v ?sample ?line ?start ?end ?short ?long ?t-stat ?break]
         (clean-src ?s-res ?mod-h ?mod-v ?sample ?line ?start ?ndvi ?precl)
         (f/shorten-ts ?ndvi ?precl :> ?short-precl)
         (a/short-stat long-block short-block ?ndvi :> ?short)
         (a/long-stats ?ndvi ?short-precl :> ?long ?t-stat)
-        (a/hansen-stat ?ndvi :> ?break)
+        (count ?ndvi :> ?length)
+        (hansen-wrapper [hp-map] ?length ?ndvi :> ?break)
         (series-end ?ndvi ?start :> ?end)
         (:distinct false))))
 

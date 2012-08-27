@@ -75,7 +75,8 @@
 ;; ## Forma
 
 (def forma-run-parameters
-  {"1000-32" {:est-start "2005-12-31"
+  {"1000-32" {:modis-start "2000-02-01"
+              :est-start "2005-12-31"
               :est-end "2011-08-01" ;; I KEEP FUCKING THIS UP
               :s-res "1000"
               :t-res "32"
@@ -84,7 +85,8 @@
               :vcf-limit 25
               :long-block 15
               :window 5}
-   "500-16" {:est-start "2005-12-31"
+   "500-16" {:modis-start "2000-02-18"
+             :est-start "2005-12-31"
              :est-end "2012-04-22"
              :s-res "500"
              :t-res "16"
