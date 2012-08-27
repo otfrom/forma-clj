@@ -97,6 +97,7 @@
              :window 10
              :ridge-const 1e-8
              :convergence-thresh 1e-6
+             :lambda 160
              :max-iterations 500
              :min-coast-dist 3}})
 
