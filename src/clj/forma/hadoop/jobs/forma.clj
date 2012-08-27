@@ -150,8 +150,8 @@
 
 (defmapop [hansen-wrapper [hp-map]]
   "Wrap Hansen stat to handle smoothing using HP filter"
-  [length ts]
-  (let [k (keyword (str length))
+  [ts]
+  (let [k (keyword (str (count ts)))
         conditioning-mat (i/matrix (hp-map k))]
     (a/hansen-stat (i/mmult conditioning-mat (i/matrix ts)))))
 
@@ -171,8 +171,7 @@
         (f/shorten-ts ?ndvi ?precl :> ?short-precl)
         (a/short-stat long-block short-block ?ndvi :> ?short)
         (a/long-stats ?ndvi ?short-precl :> ?long ?t-stat)
-        (count ?ndvi :> ?length)
-        (hansen-wrapper [hp-map] ?length ?ndvi :> ?break)
+        (hansen-wrapper [hp-map] ?ndvi :> ?break)
         (series-end ?ndvi ?start :> ?end)
         (:distinct false))))
 

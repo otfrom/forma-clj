@@ -25,6 +25,7 @@
   data."
   {:est-start "2005-12-31"
    :est-end "2012-04-22"
+   :modis-start "2000-02-18"
    :s-res "500"
    :t-res "16"
    :neighbors 1
@@ -34,6 +35,7 @@
    :window 10
    :ridge-const 1e-8
    :convergence-thresh 1e-6
+   :lambda 160
    :max-iterations 500
    :min-coast-dist 3})
 
@@ -123,3 +125,36 @@
  "2006-01-17" [[(vec (range 135))]
                [(vec (range 136))]
                [(vec (range 137))]])
+
+(tabular
+ (fact
+ "Checks that `ts-length` is correctly calculating the length of a timeseries given its temporal resolution and start/end dates"
+ (ts-length "16" ?start ?end) => ?result) 
+ ?start       ?end      ?result
+ "2000-01-01" "2000-01-01" 1
+ "2000-01-01" "2000-01-17" 2
+ "2000-01-01" "2000-12-31" 23
+ "2000-02-18" "2010-02-18" 231)
+
+(facts
+  "Check generation of HP filter matrix map"
+  (let [result (first (ffirst (??-  (gen-hp-map {:lambda 160 :t-res "16" :modis-start "2000-01-01" :est-start "2000-06-01" :est-end "2000-06-20"}))))
+        k (keys result)]
+    k => [:11 :10]
+    (ffirst (result :10)) => 0.37576416729857254))
+
+(fact
+  "Check hansen wrapper"
+  (let [src [[[10 20 30 40 50 1 2 1 2 1]]]
+        hp-map (first (ffirst (??-  (gen-hp-map {:lambda 160 :t-res "16" :modis-start "2000-01-01" :est-start "2000-06-01" :est-end "2000-06-20"}))))]
+    (<- [?break]
+        (src ?ts)
+        (hansen-wrapper [hp-map] ?ts :> ?break))) => (produces [[0.8871862626990206]]))
+
+(fact
+  "Check that analyze-trends query works as expected"
+  (let [est-map (assoc test-map :est-end "2005-12-31")
+        src [["500" 28 8 0 0 693
+              (into (vec (range 100)) (repeat 35 1))
+              (into (vec (repeat 35 100)) (range 100) )]]]
+    (analyze-trends est-map src)) => (produces [["500" 28 8 0 0 693 827 -4.272413793103449 -0.021986486237970806 -0.37474409536374514 15.7960185667974]]))
