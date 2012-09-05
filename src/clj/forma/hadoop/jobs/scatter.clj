@@ -14,7 +14,8 @@
             [forma.hadoop.jobs.timeseries :as tseries]
             [forma.date-time :as date]
             [forma.classify.logistic :as log]
-            [forma.thrift :as thrift]))
+            [forma.thrift :as thrift]
+            [forma.source.ecoid :as ecoid]))
 
 (def convert-line-src
   (hfs-textline "s3n://modisfiles/ascii/admin-map.csv"))
@@ -230,6 +231,15 @@
                        (forma/dynamic-filter (hfs-seqfile ndvi-path)
                                              (hfs-seqfile reli-path)
                                              (hfs-seqfile rain-stretch-path)))))
+
+              screen-by-ecoregion
+              ([:tmp-dirs screened-eco-path]
+                 "Screen pixels by ecoregions"
+                 (let [eco-set (clojure.set/union ecoid/bra-eco-ids ecoid/idn-eco-ids)]
+                   (?- (hfs-seqfile screened-eco-path)
+                       (forma/screen-for-paper eco-set
+                                               (hfs-seqfile adjusted-series-path)
+                                               (hfs-seqfile static-path)))))
 
               cleanseries
               ([:tmp-dirs clean-series]

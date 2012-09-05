@@ -10,7 +10,8 @@
             [forma.hadoop.predicate :as p]
             [forma.trends.analysis :as a]
             [forma.ops.classify :as log]
-            [forma.trends.filter :as f]))
+            [forma.trends.filter :as f]
+            [forma.source.ecoid :as ecoid]))
 
 (defn consolidate-static
   "Due to an issue with Pail, we consolidate separate sequence files
@@ -67,7 +68,8 @@
       (thrift/unpack ?ts-loc :> ?s-res ?mod-h ?mod-v ?sample ?line)
       
       ;; filter on vcf-limit - ensures join & filter actually happens
-      (>= ?vcf vcf-limit)))
+      (>= ?vcf vcf-limit)
+      (:distinct true)))
 
 (defn dynamic-filter
   "Returns a new generator of ndvi and rain timeseries obtained by
@@ -80,6 +82,13 @@
       (rain-src ?s-res ?mod-h ?mod-v ?sample ?line ?p-start ?precl)
       (schema/adjust ?p-start ?precl ?n-start ?ndvi ?r-start ?reli
                      :> ?start-idx ?precl-ts ?ndvi-ts ?reli-ts)))
+
+(defn screen-for-paper
+  [eco-set src static-src]
+  (<- [?s-res ?mod-h ?mod-v ?sample ?line ?start ?ndvi ?precl ?reli]
+      (src ?s-res ?mod-h ?mod-v ?sample ?line ?start ?ndvi ?precl ?reli)
+      (static-src ?s-res ?mod-h ?mod-v ?sample ?line _ _ ?ecoid _ _)
+      (contains? eco-set ?ecoid)))
 
 (defmapcatop tele-clean
   "Return clean timeseries with telescoping window, nil if no (or not

@@ -17,7 +17,8 @@
         [clojure.string :only (join)]
         [forma.hadoop.pail :only (to-pail split-chunk-tap)])
   (:require [forma.testing :as t]
-            [forma.thrift :as thrift]))
+            [forma.thrift :as thrift]
+            [forma.source.ecoid :as ecoid]))
 
 (def test-map
   "Define estimation map for testing based on 500m-16day resolution.
@@ -114,3 +115,14 @@
                [(vec (range 136))]
                [(vec (range 137))]])
 
+(fact
+  "Check that screening for paper works correctly"
+  (let [eco-set (clojure.set/union ecoid/bra-eco-ids ecoid/idn-eco-ids)
+        src [["500" 28 8 0 0 693 [1 2 3] [1 2 3] [1 2 3]]
+             ["500" 28 8 0 1 693 [1 1 1] [2 2 2] [3 3 3]]
+             ["500" 28 8 0 2 693 [3 3 3] [2 2 2] [1 1 1]]]
+        static-src [["500" 28 8 0 0 25 0 0 0 0]
+                    ["500" 28 8 0 1 25 0 60101 0 0]
+                    ["500" 28 8 0 2 25 0 10102 0 0]]]
+    (screen-for-paper src static-src)) => (produces [["500" 28 8 0 1 693 [1 1 1] [2 2 2] [3 3 3]]
+                                                     ["500" 28 8 0 2 693 [3 3 3] [2 2 2] [1 1 1]]]))
