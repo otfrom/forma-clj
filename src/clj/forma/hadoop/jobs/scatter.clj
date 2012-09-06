@@ -235,7 +235,7 @@
               screen-by-ecoregion
               ([:tmp-dirs screened-eco-path]
                  "Screen pixels by ecoregions"
-                 (let [eco-set (clojure.set/union ecoid/bra-eco-ids ecoid/idn-eco-ids)]
+                 (let [eco-set ecoid/para-sumatra-eco-ids]
                    (?- (hfs-seqfile screened-eco-path)
                        (forma/screen-for-paper eco-set
                                                (hfs-seqfile adjusted-series-path)
