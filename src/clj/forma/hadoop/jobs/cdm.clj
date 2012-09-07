@@ -95,3 +95,81 @@ coordinates."
         (r/modis->latlon ?sres ?modh ?modv ?s ?l :> ?lat ?lon)
         (latlon-valid? ?lat ?lon)
         (latlon->tile ?lat ?lon zoom :> ?x ?y ?z))))
+
+(def prodes-classes-codes
+  {1 "d1997_0" 2 "d1999_0" 3 "d2000_0" 4 "d2000_2" 5 "d2000_3"
+   6 "d2001_0" 7 "d2001_3" 8 "d2001_4" 9 "d2002_0" 10 "d2002_1"
+   11 "d2002_4" 12 "d2002_5" 13 "d2003_0" 14 "d2003_1" 15 "d2003_2"
+   16 "d2003_5" 17 "d2003_6" 18 "d2004_0" 19 "d2004_1" 20 "d2004_2"
+   21 "d2004_3" 22 "d2004_6" 23 "d2004_7" 24 "d2005_0" 25 "d2005_1"
+   26 "d2005_2" 27 "d2005_3" 28 "d2005_4" 29 "d2005_7" 30 "d2006_0"
+   31 "d2006_1" 32 "d2006_2" 33 "d2006_3" 34 "d2006_4" 35 "d2006_5"
+   36 "d2006_6" 37 "d2006_7" 38 "d2007_0" 39 "d2007_1" 40 "d2007_2"
+   41 "d2007_3" 42 "d2007_4" 43 "d2007_5" 44 "d2007_6" 45 "d2007_7"
+   46 "d2008_0" 47 "d2008_1" 48 "d2008_2" 49 "d2008_3" 50 "d2008_4"
+   51 "d2008_5" 52 "d2008_6" 53 "d2008_7" 54 "d2009_0" 55 "d2009_1"
+   56 "d2009_2" 57 "d2009_3" 58 "d2009_4" 59 "d2009_5" 60 "d2009_6"
+   61 "d2009_7" 62 "d2010_0" 63 "d2010_1" 64 "d2010_2" 65 "d2010_3"
+   66 "d2010_4" 67 "d2010_5" 68 "d2010_6" 69 "d2010_7" 70 "d2011_0"})
+
+(defn parse-prodes-code
+  [prodes-class]
+  {:pre [(contains? prodes-classes-codes prodes-class)]}
+  (let [code (prodes-classes-codes prodes-class)]
+    (->> code
+        (rest)
+        (apply str)
+        (#(.split % "_"))
+        (map #(Integer/parseInt %)))))
+
+(defn year-lag->prodes-code
+  [year lag]
+  (str "d" year "_" lag))
+
+(defn prodes-class->year
+  [cls]
+  (first (parse-prodes-code cls)))
+
+(defn get-prodes-class
+  ([yr]
+     (get-prodes-class yr 0))
+  ([yr lag]
+     ((clojure.set/map-invert prodes-classes-codes)
+      (year-lag->prodes-code yr lag))))
+
+(defn prodes-interval
+  "Given a PRODES class, return the start and end dates (exclusive) of
+   that PRODES year. Lag classes are handled the same way as standard
+   classes. That is, the returned interval will be the same.
+
+   Usage:
+     (prodes-interval 3)
+     => [\"1999-09-01\" \"2000-09-01\"]"
+  [prodes-class]
+  {:pre [(contains? prodes-classes-codes prodes-class)]} 
+  (let [y-end (prodes-class->year prodes-class)
+        y-start (dec y-end)
+        [m d] [9 1]]
+    [(format "%d-%02d-%02d" y-start m d)
+     (format "%d-%02d-%02d" y-end m d)]))
+
+(defn date->prodes-year
+  "For a given date, return the so-called 'PRODES year', which we define
+   as starting Sept. 1 each year"
+  [date-str]
+  (let [yr (Integer/parseInt (date/convert date-str
+                                           :year-month-day
+                                           :year))
+        prodes-class (get-prodes-class yr)
+        [start end] (prodes-interval prodes-class)]
+    (if (date/within-dates? start end date-str)
+      yr
+      (inc yr))))
+
+(defn date->prodes-class
+  "Returns the PRODES class for a given date."
+  ([date-str]
+     (date->prodes-class date-str 0))
+  ([date-str lag]
+     (get-prodes-class (date->prodes-year date-str) lag)))
+

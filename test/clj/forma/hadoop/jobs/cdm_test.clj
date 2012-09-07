@@ -34,3 +34,45 @@ series."
     (forma->cdm raw-output gadm-src 17 "16" "32" "2005-12-31" 50)
     => (produces [[102590 65206 17 74 "IDN" 0.9062499999999973 101.77314715106174]
                   [102591 65206 17 73 "IDN" 0.9062499999999973 101.7773143389889]])))
+
+(fact
+  "Check that PRODES codes are parsed correctly"
+  (parse-prodes-code 3) => [2000 0]
+  (parse-prodes-code 22) => [2004 6]
+  (parse-prodes-code 70) => [2011 0])
+
+(fact
+  "Check that year/lag parsing produces correct PRODES codes"
+  (year-lag->prodes-code 2000 0) => "d2000_0"
+  (year-lag->prodes-code 2000 2) => "d2000_2"
+  (year-lag->prodes-code 2010 6) => "d2010_6")
+
+(fact
+  "Check that prodes-class->year handles classes correctly even when
+   using lag class."
+  (prodes-class->year 3) => 2000
+  (prodes-class->year 68) => 2010
+  (prodes-class->year 62) => 2010)
+
+(fact
+  "Check that intervals are correct for given PRODES class, and that
+   lag classes are handled the same way as 'normal' classes."
+  (prodes-interval 3) => ["1999-09-01" "2000-09-01"]
+  (prodes-interval 62) => ["2009-09-01" "2010-09-01"]
+  (prodes-interval 68) => ["2009-09-01" "2010-09-01"])
+
+(fact
+  "Check that PRODES year is calculated correctly for dates just before
+   and after beginning of year."
+  (date->prodes-year "2005-12-31") => 2006
+  (date->prodes-year "2006-06-30") => 2006
+  (date->prodes-year "2006-08-31") => 2006
+  (date->prodes-year "2006-09-01") => 2007)
+
+(fact
+  "Check that PRODES class is correct for dates with and without lags."
+  (date->prodes-class "2000-01-01") => 3
+  (date->prodes-class "2000-01-01" 2) => 4
+  (date->prodes-class "2010-01-01" 6) => 68
+  (date->prodes-class "2010-01-01" 8) => nil
+  (date->prodes-class "2015-01-01") => (throws AssertionError))
