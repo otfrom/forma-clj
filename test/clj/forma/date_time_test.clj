@@ -111,9 +111,12 @@ month    1       12)
 (facts
   "Check that `date-str->vec-idx` outputs the correct index for a date"
   (date-str->vec-idx "16" "2000-01-01" [2 4 6] "2000-01-17") => 1
-  (date-str->vec-idx "16" "2000-01-01" [1 2 3] "2001-01-01") => nil)
+  (date-str->vec-idx "16" "2000-01-01" [1 2 3] "2001-01-01") => nil
+  (date-str->vec-idx "16" "2000-12-31" [1 2 3] "2001-01-17") => 2)
 
 (facts
   "Check that `get-val-at-date` outputs the correct index for a date"
   (get-val-at-date "16" "2000-01-01" [2 4 6] "2000-01-17") => 4
-  (get-val-at-date "16" "2000-01-01" [1 2 3] "2001-01-01") => nil)
+  (get-val-at-date "16" "2000-01-01" [2 4 6] "2001-01-01") => nil
+  (get-val-at-date "16" "2005-12-31" [2 4 6] "2006-01-01") => 4
+  (get-val-at-date "16" "2005-12-31" [2 4 6] "2006-01-17") => 6)

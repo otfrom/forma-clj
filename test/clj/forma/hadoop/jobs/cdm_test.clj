@@ -76,3 +76,15 @@ series."
   (date->prodes-class "2010-01-01" 6) => 68
   (date->prodes-class "2010-01-01" 8) => nil
   (date->prodes-class "2015-01-01") => (throws AssertionError))
+
+(fact
+  "Check that FORMA values are extracted correctly for PRODES year."
+  (let [src [[1 "16" (vec (range 150))]]]
+    (<- [?a ?tres ?vals]
+        (src ?a ?tres ?probs)
+        (extract-forma ?tres ?probs :> ?vals))) => (produces [[1 "16" 15]
+                                                              [1 "16" 38]
+                                                              [1 "16" 61]
+                                                              [1 "16" 84]
+                                                              [1 "16" 107]
+                                                              [1 "16" 130]]))

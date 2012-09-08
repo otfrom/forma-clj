@@ -292,10 +292,10 @@ in which `string` lies (according to the supplied resolution, `res`)."
      => nil"
   [t-res v-start-dt v dt]
   (let [start-idx (datetime->period t-res v-start-dt)
-        end-idx (dec (+ start-idx (count v)))
-        end-date (period->datetime t-res end-idx)]
-    (if (within-dates? v-start-dt end-date dt)
-      (- (datetime->period t-res dt) start-idx)
+        idx (- (datetime->period t-res dt) start-idx)
+        length (count v)]
+    (if (<= idx (dec length))
+      idx
       nil)))
 
 (defn get-val-at-date
@@ -316,5 +316,5 @@ in which `string` lies (according to the supplied resolution, `res`)."
   [t-res v-start-dt v dt]
   (let [idx (date-str->vec-idx t-res v-start-dt v dt)]
     (if idx
-    (nth v idx)
-    nil)))
+      (nth v idx)
+      nil)))
