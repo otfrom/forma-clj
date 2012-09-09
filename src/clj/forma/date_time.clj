@@ -294,7 +294,8 @@ in which `string` lies (according to the supplied resolution, `res`)."
   (let [start-idx (datetime->period t-res v-start-dt)
         idx (- (datetime->period t-res dt) start-idx)
         length (count v)]
-    (if (<= idx (dec length))
+    (if (and (<= idx (dec length))
+             (>= idx 0))
       idx
       nil)))
 
@@ -313,8 +314,20 @@ in which `string` lies (according to the supplied resolution, `res`)."
    
      (date-str->vec-idx \"16\" \"2000-01-01\" [2 4 6] \"2012-05-01\")
      => nil"
-  [t-res v-start-dt v dt]
+  [t-res v-start-dt v dt & {:keys [out-of-bounds-val out-of-bounds-idx]}]
   (let [idx (date-str->vec-idx t-res v-start-dt v dt)]
     (if idx
       (nth v idx)
-      nil)))
+      (or out-of-bounds-val
+          (if out-of-bounds-idx
+            (nth v out-of-bounds-idx))
+          nil))))
+
+(defn dec-date
+  "Decrement a date to the date corresponding to the start
+   of the previous period."
+  [t-res date-coll]
+  (let [dec-date (comp (partial period->datetime t-res)
+                       dec
+                       (partial datetime->period t-res))]
+    (map dec-date date-coll)))

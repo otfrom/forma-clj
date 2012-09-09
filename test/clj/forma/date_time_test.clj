@@ -120,3 +120,6 @@ month    1       12)
   (get-val-at-date "16" "2000-01-01" [2 4 6] "2001-01-01") => nil
   (get-val-at-date "16" "2005-12-31" [2 4 6] "2006-01-01") => 4
   (get-val-at-date "16" "2005-12-31" [2 4 6] "2006-01-17") => 6)
+
+(future-fact
+ "Test for dec-date")

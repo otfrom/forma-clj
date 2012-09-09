@@ -36,33 +36,38 @@ series."
                   [102591 65206 17 73 "IDN" 0.9062499999999973 101.7773143389889]])))
 
 (fact
-  "Check that PRODES codes are parsed correctly"
-  (parse-prodes-code 3) => [2000 0]
-  (parse-prodes-code 22) => [2004 6]
-  (parse-prodes-code 70) => [2011 0])
+  "Check parse-prodes-id."
+  (parse-prodes-id 3) => [2000 0]
+  (parse-prodes-id 22) => [2004 6]
+  (parse-prodes-id 70) => [2011 0])
 
 (fact
-  "Check that year/lag parsing produces correct PRODES codes"
+  "Check year-lag->prodes-code."
   (year-lag->prodes-code 2000 0) => "d2000_0"
   (year-lag->prodes-code 2000 2) => "d2000_2"
   (year-lag->prodes-code 2010 6) => "d2010_6")
 
 (fact
-  "Check that prodes-class->year handles classes correctly even when
-   using lag class."
-  (prodes-class->year 3) => 2000
-  (prodes-class->year 68) => 2010
-  (prodes-class->year 62) => 2010)
+  "Check prodes-id->year. Correctly handles ids even when using lag id."
+  (prodes-id->year 3) => 2000
+  (prodes-id->year 68) => 2010
+  (prodes-id->year 62) => 2010)
 
 (fact
-  "Check that intervals are correct for given PRODES class, and that
-   lag classes are handled the same way as 'normal' classes."
+  "Check get-prodes-id"
+  (get-prodes-id 2000) => 3
+  (get-prodes-id 2000 0) => 3
+  (get-prodes-id 2000 2) => 4)
+
+(fact
+  "Check prodes-interval. Intervals are correct for given PRODES id, and
+   lag classes are handled the same way as 'normal' ids."
   (prodes-interval 3) => ["1999-09-01" "2000-09-01"]
   (prodes-interval 62) => ["2009-09-01" "2010-09-01"]
   (prodes-interval 68) => ["2009-09-01" "2010-09-01"])
 
 (fact
-  "Check that PRODES year is calculated correctly for dates just before
+  "Check date->prodes-year. PRODES year is calculated correctly for dates just before
    and after beginning of year."
   (date->prodes-year "2005-12-31") => 2006
   (date->prodes-year "2006-06-30") => 2006
@@ -70,21 +75,101 @@ series."
   (date->prodes-year "2006-09-01") => 2007)
 
 (fact
-  "Check that PRODES class is correct for dates with and without lags."
-  (date->prodes-class "2000-01-01") => 3
-  (date->prodes-class "2000-01-01" 2) => 4
-  (date->prodes-class "2010-01-01" 6) => 68
-  (date->prodes-class "2010-01-01" 8) => nil
-  (date->prodes-class "2015-01-01") => (throws AssertionError))
+  "Check date->prodes-id. PRODES id is correct for dates with and without lags."
+  (date->prodes-id "2000-01-01") => 3
+  (date->prodes-id "2000-01-01" 2) => 4
+  (date->prodes-id "2010-01-01" 6) => 68
+  (date->prodes-id "2010-01-01" 8) => nil
+  (date->prodes-id "2015-01-01") => (throws AssertionError))
 
 (fact
-  "Check that FORMA values are extracted correctly for PRODES year."
-  (let [src [[1 "16" (vec (range 150))]]]
-    (<- [?a ?tres ?vals]
-        (src ?a ?tres ?probs)
-        (extract-forma ?tres ?probs :> ?vals))) => (produces [[1 "16" 15]
-                                                              [1 "16" 38]
-                                                              [1 "16" 61]
-                                                              [1 "16" 84]
-                                                              [1 "16" 107]
-                                                              [1 "16" 130]]))
+  "Check extract-forma. FORMA values are extracted correctly for PRODES year."
+  (let [tres "16" 
+        src [["500" 12 8 0 0 (vec (range 150))]]]
+    (<- [?sres ?modh ?modv ?s ?l ?years ?vals]
+          (src ?sres ?modh ?modv ?s ?l ?prob-series)
+          (extract-forma tres ?prob-series :> ?years ?vals))) => (produces [["500" 12 8 0 0 2006 15]
+                                                                            ["500" 12 8 0 0 2007 38]
+                                                                            ["500" 12 8 0 0 2008 61]
+                                                                            ["500" 12 8 0 0 2009 84]
+                                                                            ["500" 12 8 0 0 2010 107]
+                                                                            ["500" 12 8 0 0 2011 130]]))
+
+(fact
+  "Check mk-prodes-map."
+  (mk-prodes-map [3 4] [10 15]) => {2 15, 0 10})
+
+(fact
+  "Check prodes-map->wide."
+  (prodes-map->wide {2 15, 0 10}) => [10 0 15 0 0 0 0 0])
+
+(fact
+  (let [src [[12 8 0 0 3 20]
+             [12 8 0 0 4 25]
+             [12 8 0 0 5 21]]]
+        (<- [?modh ?modv ?sample ?line ?p0 ?p1 ?p2 ?p3 ?p4 ?p5 ?p6 ?p7]
+            (src ?modh ?modv ?sample ?line ?prodes-id ?ct)
+            (prodes-id->year ?prodes-id :> ?year)
+            (prodes-wide ?prodes-id ?ct :> ?p0 ?p1 ?p2 ?p3 ?p4 ?p5 ?p6 ?p7))) => (produces [[12 8 0 0 20 0 25 21 0 0 0 0]]))
+
+(fact
+  "Check in-training?"
+  ;; in training, no lag
+  (in-training? [2003 2003] "2000-01-01" "2005-12-31") => true
+
+  ;; inside training, lag inside training
+  (in-training? [2004 2002] "2000-01-01" "2005-12-31") => true
+
+  ;; inside training, lag outside training
+  (in-training? [2003 1998] "2000-01-01" "2005-12-31") => false
+
+  ;; outside training, no lag
+  (in-training? [2008 2008] "2000-01-01" "2005-12-31") => false
+
+  ;; outside training, lag inside training
+  (in-training? [2008 2004] "2000-01-01" "2005-12-31") => false
+
+  ;; inside training, no lag, stretched training period to include 2006
+  (in-training? [2006 2006] "2000-01-01" "2006-09-02") => true)
+
+(fact
+  "Check prodes-sum-training"
+  (let [src [["2000-01-01" "2005-12-31" 9 10]
+             ["2000-01-01" "2005-12-31" 69 10]
+             ["2000-01-01" "2005-12-31" 21 10]]]
+    (<- [?sum]
+          (src ?start ?end ?id ?ct)
+          (prodes-sum-training ?start ?end ?id ?ct :> ?sum))) => (produces [[20]]))
+
+(fact
+  "Check tweak-training"
+  (tweak-training "2000-02-18" "2005-12-31") => ["2000-09-01" "2005-09-01"]
+  (tweak-training "2000-02-18" "2005-12-31" :extend-start true) => ["1999-09-01" "2005-09-01"]
+  (tweak-training "2000-02-18" "2005-12-31" :extend-end true) => ["2000-09-01" "2006-09-01"]
+  (tweak-training "2000-02-18" "2005-12-31" :extend-start true :extend-end true) => ["1999-09-01" "2006-09-01"])
+
+
+
+(fact
+  "Check forma-prodes."
+  (let [t-res "16"
+        train-start "2000-01-01"
+        est-start "2005-12-31"
+        px ["500" 12 8 0 0]
+        forma-src [(into px [(vec (map #(/ % 100.0) (range 1 150)))])]
+        static-src [(into px [25 1000 3000 100 21])]
+        prodes-src [(into (vec (rest px)) [3 21])
+                    (into (vec (rest px)) [4 22])
+                    (into (vec (rest px)) [5 23])
+                    (into (vec (rest px)) [9 24])
+                    (into (vec (rest px)) [20 25])]]
+    (forma-prodes t-res forma-src static-src prodes-src est-start
+                  "2000-02-18" "2005-12-31") => (produces-some
+                                         [["500" 12 8 0 0 100 25 1000 3000 1 1 2006 15 49 24 0 25 23 0 0 0 0]
+                                          ["500" 12 8 0 0 100 25 1000 3000 1 1 2007 38 49 24 0 25 23 0 0 0 0]])
+     (forma-prodes t-res forma-src static-src prodes-src est-start
+                   "2000-02-18" "2005-12-31" :extend-start false
+                   :extend-end true) => (produces-some
+                                         [["500" 12 8 0 0 100 25 1000 3000 1 16 2006 15 49 24 0 25 23 0 0 0 0]
+                                          ["500" 12 8 0 0 100 25 1000 3000 1 16 2007 38 49 24 0 25 23 0 0 0 0]]
+                                         )))
