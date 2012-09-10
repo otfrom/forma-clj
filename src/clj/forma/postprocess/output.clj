@@ -51,10 +51,14 @@
   Example usage:
     (clean-probs [0.1 0.2 0.3 0.4 0.5]) => [[10 15 20 30 40]]"
   [ts]
-  {:post [(= (count (flatten %)) (count ts))]}
-  [(vec (->> (backward-looking-mavg 3 ts)
+  {:post [(if ts
+            (= (count (flatten %)) (count ts))
+            true)]}
+  (if ts
+      [(vec (->> (backward-looking-mavg 3 ts)
              (reductions max)
-             (map #(round (* % 100)))))])
+             (map #(round (* % 100)))))]
+      [nil]))
 
 (defn error-map
   "returns a vector indicating one of four possiblities: false

@@ -88,12 +88,13 @@ series."
         src [["500" 12 8 0 0 (vec (range 150))]]]
     (<- [?sres ?modh ?modv ?s ?l ?years ?vals]
           (src ?sres ?modh ?modv ?s ?l ?prob-series)
-          (extract-forma tres ?prob-series :> ?years ?vals))) => (produces [["500" 12 8 0 0 2006 15]
-                                                                            ["500" 12 8 0 0 2007 38]
-                                                                            ["500" 12 8 0 0 2008 61]
-                                                                            ["500" 12 8 0 0 2009 84]
-                                                                            ["500" 12 8 0 0 2010 107]
-                                                                            ["500" 12 8 0 0 2011 130]]))
+          (extract-forma tres ?prob-series :> ?years ?vals))) =>
+          (produces [["500" 12 8 0 0 2006 15]
+                     ["500" 12 8 0 0 2007 38]
+                     ["500" 12 8 0 0 2008 61]
+                     ["500" 12 8 0 0 2009 84]
+                     ["500" 12 8 0 0 2010 107]
+                     ["500" 12 8 0 0 2011 130]]))
 
 (fact
   "Check mk-prodes-map."
@@ -148,17 +149,45 @@ series."
   (tweak-training "2000-02-18" "2005-12-31" :extend-end true) => ["2000-09-01" "2006-09-01"]
   (tweak-training "2000-02-18" "2005-12-31" :extend-start true :extend-end true) => ["1999-09-01" "2006-09-01"])
 
-
+(fact
+  "Check prodes-wide."
+  (let [prodes-src [[12 8 0 0 3 20] ;; training drop
+                    [12 8 0 0 4 20] ;; training drop
+                    [12 8 0 0 68 5] ;; 2010 lag 6
+                    [12 8 0 0 55 5] ;; 2009 lag 1
+                    [12 8 0 1 3 20] ;; training drop
+                    [12 8 0 1 68 9] ;; 2010 lag 6
+                    [12 8 0 1 30 30] ;; 2006 lag 0
+                    [12 8 0 1 31 30]]] ;; 2006 lag 1]]
+    (prodes-wide-query prodes-src)) => (produces [[12 8 0 0 2009 0 5 0 0 0 0 0 0] [12 8 0 0 2010 0 0 0 0 0 0 5 0] [12 8 0 1 2006 30 30 0 0 0 0 0 0] [12 8 0 1 2010 0 0 0 0 0 0 9 0]]))
 
 (fact
-  "Check forma-prodes."
+  "Check forma-extract-query"
+  (let [forma-src [(into ["500" 12 8 0 0] [(vec (map #(/ % 100.0) (range 1 150)))])
+                   (into ["500" 12 8 0 2] [(vec (map #(/ % 100.0) (range 1 150)))])]]
+    (forma-extract-query
+     "16" forma-src)) => (produces [[12 8 0 0 2006 15]
+                                    [12 8 0 0 2007 38]
+                                    [12 8 0 0 2008 61]
+                                    [12 8 0 0 2009 84]
+                                    [12 8 0 0 2010 107]
+                                    [12 8 0 0 2011 130]
+                                    [12 8 0 2 2006 15]
+                                    [12 8 0 2 2007 38]
+                                    [12 8 0 2 2008 61]
+                                    [12 8 0 2 2009 84]
+                                    [12 8 0 2 2010 107]
+                                    [12 8 0 2 2011 130]]))
+
+(comment
   (let [t-res "16"
         train-start "2000-01-01"
         est-start "2005-12-31"
         px ["500" 12 8 0 0]
         forma-src [(into px [(vec (map #(/ % 100.0) (range 1 150)))])]
         static-src [(into px [25 1000 3000 100 21])]
-        prodes-src [(into (vec (rest px)) [3 21])
+        prodes-src [[28 8 0 1 3 21] ;; test ungrounding
+                    (into (vec (rest px)) [3 21])
                     (into (vec (rest px)) [4 22])
                     (into (vec (rest px)) [5 23])
                     (into (vec (rest px)) [9 24])
@@ -172,4 +201,5 @@ series."
                    :extend-end true) => (produces-some
                                          [["500" 12 8 0 0 100 25 1000 3000 1 16 2006 15 49 24 0 25 23 0 0 0 0]
                                           ["500" 12 8 0 0 100 25 1000 3000 1 16 2007 38 49 24 0 25 23 0 0 0 0]]
-                                         )))
+                                         ))
+  )

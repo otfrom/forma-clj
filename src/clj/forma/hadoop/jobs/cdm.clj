@@ -138,13 +138,13 @@ coordinates."
      (parse-prodes-id 68)
      => (2010 6)"
   [prodes-id]
-  {:pre [(contains? prodes-ids-codes prodes-id)]}
   (let [code (prodes-ids-codes prodes-id)]
-    (->> code
+    (if code
+      (->> code
         (rest)
         (apply str)
         (#(.split % "_"))
-        (map #(Integer/parseInt %)))))
+        (map #(Integer/parseInt %))))))
 
 (defn year-lag->prodes-code
   "Given a year and lag, return the corresponding PRODES code.
@@ -240,13 +240,17 @@ coordinates."
 
 (defmapcatop extract-forma
   "Extract FORMA values from a probability timeseries for each PRODES year."
-  [t-res prob-series]
+  [t-res series-start prob-series]
   (let [[m d] [prodes-year-month prodes-year-day]
         dates (date/dec-date t-res
                         (map #(format "%d-%02d-%02d" % m d)
-                             (range prodes-count-start (inc prodes-count-end))))
+                             (range prodes-count-start
+                                    (inc prodes-count-end))))
         years (range prodes-count-start (inc prodes-count-end))
-        forma-vals (map (partial date/get-val-at-date t-res "2005-12-31" prob-series) dates)]
+        forma-vals (if prob-series
+                     (map (partial date/get-val-at-date t-res
+                                   series-start prob-series) dates)
+                     (repeat (count years) nil))]
     (partition 2 (interleave years forma-vals))))
 
 (defn mk-prodes-map
@@ -319,8 +323,6 @@ coordinates."
         m (reduce merge (map (partial assoc {}) yr-ranges prodes-cts))]
     [(reduce + (map m (filter #(in-training? % start-dts end-dts) (keys m))))]))
 
-;; #(fn [effective-yrs prodes-cts start-dt end-dt]
-
 (defbufferop prodes-wide
   "Given tuples of PRODES ids and counts, produce a sparse wide dataset with
    zeros where there is no id for a given year.
@@ -328,18 +330,20 @@ coordinates."
   Usage:
     (let [src [[12 8 0 0 3 20]
                [12 8 0 0 4 25]
-               [12 8 0 0 5 21]]
+               [12 8 0 0 5 21]
+               [12 8 0 0 68 15]]
      (??<- [?modh ?modv ?sample ?line ?p0 ?p1 ?p2 ?p3 ?p4 ?p5 ?p6 ?p7]
            (src ?modh ?modv ?sample ?line ?prodes-id ?ct)
            (prodes-id->year ?prodes-id :> ?year)
            (prodes-wide ?prodes-id ?ct :> ?p0 ?p1 ?p2 ?p3 ?p4 ?p5 ?p6 ?p7)))
-    [[12 8 0 0 20 0 25 21 0 0 0 0]]
+    => [[12 8 0 0 2000 20 0 25 21 0 0 0 0]
+        [12 8 0 0 2010 0 0 0 0 0 0 15 0]]
 
     Note that id 3 is d2000_0, 4 is d2000_2, 5 is d2000_3. There are no
     d2000_1 or other id in 2000, hence the remaining zeros."
   [tuples]
   (let [ids (map first tuples)
-        counts (map last tuples)]
+        counts (map second tuples)]
     [(prodes-map->wide (mk-prodes-map ids counts))]))
 
 (defn tweak-date->prodes
@@ -400,8 +404,54 @@ coordinates."
                   (tweak-date->prodes train-end :dec))]
     [new-start new-end]))
 
+(defn replace-nils
+  [nodata-val & fields]
+  (replace {nil nodata-val} fields))
+
+(defn outside-training?
+  [yr]
+  (if (or (nil? yr)
+          (< 2005 yr))
+    true
+    false))
+
+(defmapcatop gen-years
+  [& fields]
+  (vec (range 2006 2011)))
+
+(defn prodes-wide-query
+  [prodes-src]
+  (<- [?modh ?modv ?s ?l ?year ?p0 ?p1 ?p2 ?p3 ?p4 ?p5 ?p6 ?p7]
+      (prodes-src ?modh ?modv ?s ?l ?id ?ct)
+      (prodes-id->year ?id :> ?year)
+      (prodes-wide ?id ?ct :> ?p0 ?p1 ?p2 ?p3 ?p4 ?p5 ?p6 ?p7)
+      (outside-training? ?year)))
+
+(defn forma-extract-query
+  [t-res est-start forma-src]
+  (<- [?modh ?modv ?s ?l ?year ?forma]
+      (forma-src ?sres ?modh ?modv ?s ?l ?prob-series)
+      (o/clean-probs ?prob-series :> ?clean-series)
+      (extract-forma t-res est-start ?clean-series :> ?year ?forma)))
+
+(defmapcatop add-years
+  [modh modv sample line]
+  (map vector (range prodes-count-start
+                     (inc prodes-count-end))))
+
+(defn prodes-sums-query
+  [train-start train-end prodes-src]
+  (<- [?modh ?modv ?s ?l ?year ?ptrain]
+       (prodes-src ?modh ?modv ?s ?l ?id ?ct)
+       (add-years ?modh ?modv ?s ?l :> ?year)
+       (prodes-sum-training train-start train-end ?id ?ct :> ?ptrain)))
+
 (defn forma-prodes
-  "Produces a time series dataset of PRODES counts and FORMA probabilities
+  [t-res forma-src static-src prodes-src est-start train-start train-end
+   & {:keys [extend-start extend-end]
+      :or {extend-start true
+           extend-end true}}]
+    "Produces a time series dataset of PRODES counts and FORMA probabilities
    at the end of each PRODES year.
 
    Also includes the FORMA probability at the end of the standard training
@@ -430,25 +480,76 @@ coordinates."
    Note that the provided `train-start` and `est-start` arguments
    should be chosen to take the misalignment of PRODES and regular
    years into account."
-  [t-res forma-src static-src prodes-src est-start train-start train-end
-   & {:keys [extend-start extend-end]}]
-  (let [[train-start train-end] (tweak-training train-start train-end
-                                                :extend-start extend-start
-                                                :extend-end extend-end)
-        prodes-train-src (<- [?modh ?modv ?s ?l ?ptrain]
-                             (prodes-src ?modh ?modv ?s ?l ?id ?ct)
-                             (prodes-sum-training train-start train-end ?id ?ct :> ?ptrain))]    
-    (<- [?sres ?modh ?modv ?s ?l ?hansen ?vcf ?gadm ?ecoid ?forma-train
-         ?forma-train-tweaked ?year ?forma ?ptrain ?p0 ?p1 ?p2 ?p3 ?p4 ?p5 ?p6 ?p7]
-        (forma-src ?sres ?modh ?modv ?s ?l ?prob-series)
+  (let [[train-start train-end] (tweak-training
+                                 train-start train-end
+                                 :extend-start extend-start
+                                 :extend-end extend-end)
+        prodes-wide-src (prodes-wide-query prodes-src)
+        prodes-sum-src (prodes-sums-query train-start train-end prodes-src)
+        forma-ts-src (forma-extract-query t-res est-start forma-src)]
+    (<- [?modh ?modv ?s ?l ?vcf ?gadm ?ecoid ?hansen ?year ?forma ?forma-train ?forma-train-tweaked !!ptrain !!p0 !!p1 !!p2 !!p3 !!p4 !!p5 !!p6 !!p7 ]
+        (forma-ts-src ?modh ?modv ?s ?l ?year ?forma)
+        (prodes-wide-src ?modh ?modv ?s ?l ?year !!p0 !!p1 !!p2 !!p3 !!p4 !!p5 !!p6 !!p7)
+        (prodes-sum-src ?modh ?modv ?s ?l ?year !!ptrain)
+        (forma-src _ ?modh ?modv ?s ?l ?prob-series)
         (o/clean-probs ?prob-series :> ?clean-series)
-        (extract-forma t-res ?clean-series :> ?year ?forma)
         (date/get-val-at-date t-res est-start ?clean-series est-start :out-of-bounds-idx 0 :> ?forma-train)
         (date/get-val-at-date t-res est-start ?clean-series train-end :out-of-bounds-idx 0 :> ?forma-train-tweaked)
-        (static-src ?sres ?modh ?modv ?s ?l ?vcf ?gadm ?ecoid ?hansen _)
-        (prodes-src ?modh ?modv ?s ?l ?id ?ct)
-        (prodes-wide ?id ?ct :> ?p0 ?p1 ?p2 ?p3 ?p4 ?p5 ?p6 ?p7)
-        (prodes-train-src ?modh ?modv ?s ?l ?ptrain))))
+        (static-src _ ?modh ?modv ?s ?l ?vcf ?gadm ?ecoid ?hansen _)
+        )))
+
 
 ;; have to make sure test passes
 ;; have to make sure training before beginning of FORMA returns nil
+
+(defn check-years
+  [forma-year prodes-year]
+  (or (= forma-year prodes-year)
+      (nil? forma-year)
+      (nil? prodes-year)))
+
+(comment
+  (defn cumul-sum-query
+  [train-end prodes-src]
+  (<- [?modh ?modv ?s ?l ?year ?p]
+       (prodes-src ?modh ?modv ?s ?l ?id ?ct)
+       (add-years ?modh ?modv ?s ?l :> ?year)
+       (prodes-cumul-sum train-start train-end ?id ?ct :> ?p))))
+
+(defn prodes-sums-n-wide
+  [train-start train-end prodes-src]
+  (let [sums-src (prodes-sums-query train-start train-end prodes-src)
+        wide-src (prodes-wide-query prodes-src)]
+    (<- [?modh ?modv ?s ?l !year !ptrain !!p0 !!p1 !!p2 !!p3 !!p4 !!p5 !!p6 !!p7]
+        (sums-src ?modh ?modv ?s ?l !year !!ptrain)
+        (wide-src ?modh ?modv ?s ?l !year !!p0 !!p1 !!p2 !!p3 !!p4 !!p5 !p6 !p7))))
+
+
+
+(defn forma-clean
+  [t-res forma-src est-start]
+  (let [forma-ts-src (forma-extract-query t-res est-start forma-src)]
+    (<- [?modh ?modv ?s ?l ?year ?forma]
+        (forma-ts-src ?modh ?modv ?s ?l ?year ?forma))))
+
+(defbufferop cumul-sum
+  [tuples]
+  (let [lag-years (map first tuples)
+        counts (map last tuples)]
+    (for [yr (range prodes-count-start
+                    (inc prodes-count-end))]
+      [yr (reduce + (filter #(<= % yr) counts))])))
+
+(defn prodes-clean
+  [prodes-src]
+  (let []
+    (<- [?modh ?modv ?s ?l ?cumul-year ?sum]
+        (prodes-src ?modh ?modv ?s ?l ?id ?count)
+        (parse-prodes-id ?id :> ?year ?lag)
+        (- ?year ?lag :> ?lag-year)
+        (<= 2000 ?lag-year)
+        (< 2005 ?year)
+        (cumul-sum ?lag-year ?count :> ?cumul-year ?sum))))
+
+
+
