@@ -20,14 +20,24 @@
     (into [] (concat [1] fire-seq [short long t-stat break]
                      fire-neighbor more))))
 
-(defbufferop [logistic-beta-wrap [r c m]]
+(defn parse-pixels
+  "Parse all pixel tuples, returning unpacked feature vectors for all pixels
+   without nodata values"
+  [nodata tuples]
+  (let [make-binary  (fn [x] (if (zero? x) 0 1))]
+    (for [x tuples :when
+          (let [[label val neighbor] x]
+            (not (contains?
+                (set
+                 (unpack-feature-vec val neighbor)) nodata))) ]
+      (let [[label val neighbor] x]
+        [(make-binary label) (unpack-feature-vec val neighbor)]))))
+
+(defbufferop [logistic-beta-wrap [nodata r c m]]
   "Accepts all tuples within an ecoregion and returns a coefficient
   vector resulting from a logistic regression."
   [tuples]
-  (let [make-binary  (fn [x] (if (zero? x) 0 1))
-        pixel-features (for [x tuples]
-                         (let [[label val neighbor] x]
-                           [(make-binary label) (unpack-feature-vec val neighbor)]))]
+  (let [pixel-features (parse-pixels nodata tuples)]
     [[(logistic-beta-vector (to-double-rowmat (map first pixel-features))
                             (to-double-matrix (map second pixel-features))
                             r c m)]]))

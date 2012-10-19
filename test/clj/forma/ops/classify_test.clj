@@ -13,7 +13,8 @@
                :ridge-const 1.0E-8
                :t-res "16"
                :est-start "2005-12-31"
-               :max-iterations 500})
+               :max-iterations 500
+               :nodata -9999.0})
 
 (fact "Test the creation of a feature vector from a FormaValue and
   NeighborValue."
@@ -22,6 +23,36 @@
         neighbor-val (thrift/NeighborValue* fire-val 1 2.0 3.0 4.0 5.0 6.0 7.0)
         unpacked (unpack-feature-vec forma-val neighbor-val)]
     unpacked => [1 1 1 1 1 3.0 3.0 3.0 3.0 1 1 1 1 2.0 3.0 4.0 5.0 6.0 7.0 0.0 0.0]))
+
+(fact
+  "Test `parse-pixels`, ensuring that no feature vector containing
+   `nodata` is returned"
+  (let [nodata (:nodata test-map)
+        label 1
+        fire-val (thrift/FireValue* 1 1 1 1)
+        forma-val (thrift/FormaValue* fire-val 3.0 3.0 3.0 3.0)
+        bad-forma (thrift/FormaValue* fire-val 3.0 3.0 nodata 3.0)
+        neighbor-val (thrift/NeighborValue* fire-val 1 2.0 3.0 4.0 5.0 6.0 7.0)
+        tuples [[label forma-val neighbor-val]
+                [label bad-forma neighbor-val]]]
+    (parse-pixels nodata tuples) => [[label (unpack-feature-vec forma-val neighbor-val)]]))
+
+(fact
+  "Test `logistic-beta-wrap`"
+  (let [nodata (:nodata test-map)
+        fire-val (thrift/FireValue* 1 1 1 1)
+        forma-val (thrift/FormaValue* fire-val 3.0 3.0 3.0 3.0)
+        bad-forma (thrift/FormaValue* fire-val 3.0 3.0 nodata 3.0)
+        neighbor-val (thrift/NeighborValue* fire-val 1 2.0 3.0 4.0 5.0 6.0 7.0)
+        {:keys [ridge-const convergence-thresh max-iterations]} test-map
+        src [[1 0 forma-val neighbor-val]
+             [1 1 forma-val neighbor-val]
+             [1 1 bad-forma neighbor-val]]]
+    (<- [?id ?beta]
+        (src ?ecoid ?hansen ?val ?neighbor-val)
+        (logistic-beta-wrap [ridge-const convergence-thresh max-iterations]
+                            ?hansen ?val ?neighbor-val :> ?beta)))
+  => (produces [1]))
 
 (defn- generate-betas
   "Returns a source of the estimated coefficient vectors for each
