@@ -50,7 +50,7 @@
              [1 1 bad-forma neighbor-val]]]
     (<- [?id ?beta]
         (src ?ecoid ?hansen ?val ?neighbor-val)
-        (logistic-beta-wrap [ridge-const convergence-thresh max-iterations]
+        (logistic-beta-wrap [nodata ridge-const convergence-thresh max-iterations]
                             ?hansen ?val ?neighbor-val :> ?beta)))
   => (produces [1]))
 
