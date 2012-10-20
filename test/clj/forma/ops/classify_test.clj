@@ -43,6 +43,7 @@
         fire-val (thrift/FireValue* 1 1 1 1)
         forma-val (thrift/FormaValue* fire-val 3.0 3.0 3.0 3.0)
         bad-forma (thrift/FormaValue* fire-val 3.0 3.0 nodata 3.0)
+        crazy-forma (thrift/FormaValue* fire-val 1000. 1000. 1000. 1000.)
         neighbor-val (thrift/NeighborValue* fire-val 1 2.0 3.0 4.0 5.0 6.0 7.0)
         {:keys [ridge-const convergence-thresh max-iterations]} test-map
         src [[1 0 forma-val neighbor-val]
