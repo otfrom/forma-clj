@@ -48,7 +48,7 @@
         src [[1 0 forma-val neighbor-val]
              [1 1 forma-val neighbor-val]
              [1 1 bad-forma neighbor-val]]]
-    (<- [?id ?beta]
+    (<- [?ecoid ?beta]
         (src ?ecoid ?hansen ?val ?neighbor-val)
         (logistic-beta-wrap [nodata ridge-const convergence-thresh max-iterations]
                             ?hansen ?val ?neighbor-val :> ?beta)))
