@@ -37,23 +37,31 @@
                 [label bad-forma neighbor-val]]]
     (parse-pixels nodata tuples) => [[label (unpack-feature-vec forma-val neighbor-val)]]))
 
-(fact
-  "Test `logistic-beta-wrap`"
-  (let [nodata (:nodata test-map)
-        fire-val (thrift/FireValue* 1 1 1 1)
-        forma-val (thrift/FormaValue* fire-val 3.0 3.0 3.0 3.0)
-        bad-forma (thrift/FormaValue* fire-val 3.0 3.0 nodata 3.0)
-        crazy-forma (thrift/FormaValue* fire-val 1000. 1000. 1000. 1000.)
-        neighbor-val (thrift/NeighborValue* fire-val 1 2.0 3.0 4.0 5.0 6.0 7.0)
-        {:keys [ridge-const convergence-thresh max-iterations]} test-map
-        src [[1 0 forma-val neighbor-val]
-             [1 1 forma-val neighbor-val]
-             [1 1 bad-forma neighbor-val]]]
-    (<- [?ecoid ?beta]
-        (src ?ecoid ?hansen ?val ?neighbor-val)
-        (logistic-beta-wrap [nodata ridge-const convergence-thresh max-iterations]
-                            ?hansen ?val ?neighbor-val :> ?beta)))
-  => (produces [1]))
+(defn simple-beta-calc
+  "Wrapper for beta-vector calculation"
+  [src nodata ridge conv-thresh max-iter]
+  (<- [?ecoid ?beta]
+      (src ?ecoid ?hansen ?val ?neighbor-val)
+      (logistic-beta-wrap [nodata ridge conv-thresh max-iter]
+                          ?hansen ?val ?neighbor-val :> ?beta)))
+
+(tabular
+ "Test `logistic-beta-wrap`, including making sure that the
+  `nodata` value doesn't screw up the results"
+ (let [{:keys [nodata r c m]} test-map
+       fire-val (thrift/FireValue* 1 1 1 1)
+       forma-val (thrift/FormaValue* fire-val 3.0 3.0 3.0 3.0)
+       other-forma-val (thrift/FormaValue* fire-val 1. 5. 3. 4.)
+       crazy-forma (thrift/FormaValue* fire-val -10000. -10000. nodata -10000.)
+       neighbor-val (thrift/NeighborValue* fire-val 1 2.0 3.0 4.0 5.0 6.0 7.0)
+       src [[1 0 forma-val neighbor-val]
+            [1 1 other-forma-val neighbor-val]]
+       crazy-src (into src [[1 1 crazy-forma neighbor-val]])]
+   (fact
+     (let [[_ beta-vec] (simple-beta-calc src nodata r c m)
+           [_ crazy-beta-vec] (simple-beta-calc crazy-src nodata r c m)]
+       (first beta-vec) => (roughly -0.2254280)
+       (= beta-vec crazy-beta-vec) => true))))
 
 (defn- generate-betas
   "Returns a source of the estimated coefficient vectors for each
