@@ -1,7 +1,7 @@
 (ns forma.hadoop.jobs.preprocess
   (:use cascalog.api
         [forma.hadoop.pail :only (to-pail)]
-        [forma.source.tilesets :only (tile-set)]
+        [forma.source.tilesets :only (tile-set remove-tiles-by-iso)]
         [cascalog.io :only (with-fs-tmp)])
   (:require [forma.hadoop.predicate :as p]
             [forma.hadoop.io :as io]
@@ -26,7 +26,8 @@
   [source-path sink-path s-res & locations]
   {:pre [(string? s-res)
          locations]}
-  (let [tiles (apply tile-set (map read-string locations))
+  (let [tiles (remove-tiles-by-iso (apply tile-set (map read-string locations))
+                                   :BRA :IDN)
         chunk-size static/chunk-size]
     (rain-chunker s-res chunk-size tiles source-path sink-path)))
 
