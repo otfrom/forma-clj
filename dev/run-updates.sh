@@ -71,18 +71,10 @@ ts=$output
 output="$TMP/ndvi-filtered"
 $LAUNCHER forma.hadoop.jobs.runner.TimeseriesFilter $SRES $TRES $ts $STATIC $output true
 
-# rain filter
-# ultimately will replace with direct merge with ndvi after
-# ndvi filter, and do adjust series at same time
-
-ts="$TMP/rain-series"
-output="$TMP/rain-filtered"
-$LAUNCHER forma.hadoop.jobs.runner.TimeseriesFilter $SRES $TRES $ts $STATIC $output false
-
 # join, adjust series
 
 ndvi="$TMP/ndvi-filtered"
-rain=$output
+rain="$TMP/rain-series"
 output="$TMP/adjusted"
 $LAUNCHER forma.hadoop.jobs.runner.AdjustSeries $SRES $TRES $ndvi $rain $output
 
